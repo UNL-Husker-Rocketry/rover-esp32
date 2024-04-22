@@ -145,7 +145,7 @@ int parseArgs(String input) {
                 return Error::INVALID_ARG;
             }
 
-            rc.ForwardBackwardM1(addresssRc, 64);
+            move(direction);
         }
         break;
 
@@ -275,6 +275,31 @@ String leadingZeroes(int input) {
 
     return newNumber + number;
 }
+
+/// Make the RoboClaw controller move forwards/backwards
+bool move(Direction dir) {
+    // TODO: Figure out what the actual forward and backward values are
+    switch(dir) {
+        case(Direction::FORWARD): {
+            rc.ForwardBackwardM1(addresssRc, 64);
+            rc.ForwardBackwardM2(addresssRc, 64);
+        }
+        break;
+        case(Direction::BACKWARD): {
+            rc.ForwardBackwardM1(addresssRc, 64);
+            rc.ForwardBackwardM2(addresssRc, 64);
+        }
+        break;
+        default: {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+
+
 
 
 
