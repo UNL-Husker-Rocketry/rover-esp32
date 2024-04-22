@@ -43,6 +43,7 @@ enum Error {
     INVALID = -1,
     EXPECTED_ARG = -2,
     FUNCTION_FAILURE = -3,
+    INVALID_ARG = -4,
 }; 
 
 void setup() {
@@ -136,14 +137,26 @@ void loop() {
         if (*arg == 'm') {
             Serial.println("Moving");
         } else if (*arg == 'p') {
-            Serial.println("Taking picture");
+            int times = 0;
+            arg = strtok(NULL, " ");
+            if (arg == NULL) {
+                times = 1;
+            } else {
+                times = atoi(arg);
+            }
 
-            if (!savePicture()) {
-                SerialBT.write(Error::FUNCTION_FAILURE);
+            if (times == 0) {
+                SerialBT.write(Error::INVALID_ARG);
                 return;
             }
+
+            for (int i = 0; i < times; i++) {
+                if (!savePicture()) {
+                    SerialBT.write(Error::FUNCTION_FAILURE);
+                    return;
+                }
+            }
         } else if (*arg == 'n') {
-            // Get the next argument
             arg = strtok(NULL, " ");
             if (arg == NULL) {
                 SerialBT.write(Error::EXPECTED_ARG);
@@ -151,15 +164,12 @@ void loop() {
             }
 
             int newVal = atoi(arg);
-
             if (newVal == 0) {
-                SerialBT.write(Error::INVALID);
+                SerialBT.write(Error::INVALID_ARG);
                 return;
             }
 
-            Serial.print("Updating EEPROM picture value to ");
-            Serial.println(arg);
-
+            pictureNumber = newVal;
             EEPROM.write(0, newVal);
             EEPROM.commit();
         } else {
@@ -179,7 +189,6 @@ bool savePicture() {
         fb = NULL;
     }
     fb = esp_camera_fb_get();
-    pictureNumber++;
 
     String path = "/pic" + String(pictureNumber) +".jpeg";
     fs::FS &fs = SD_MMC;
@@ -199,6 +208,7 @@ bool savePicture() {
     EEPROM.commit();
 
     esp_camera_fb_return(fb);
+    pictureNumber++;
 
     return true;
 }

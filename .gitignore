@@ -1,2 +1,3 @@
 .pio
 bluetooth-terminal/target/
+bluetooth-terminal/Cargo.lock

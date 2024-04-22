@@ -31,6 +31,11 @@ fn bt_console(socket: &mut BtSocket) {
         let mut buffer: String = read!("{}\n");
         buffer.push_str("\n");
 
+        if buffer.len() > 127 {
+            println!("Command too long, greater than 127 bytes");
+            continue
+        }
+
         // Write the command to the device, if it fails, try to reconnect
         let out_size = match socket.write(&buffer.as_bytes()[..]) {
             Ok(size) => size,
@@ -51,13 +56,15 @@ fn bt_console(socket: &mut BtSocket) {
 
         if 0b10000000 & buf[0] != 0 {
             let zeroed = 128 - (buf[0] & 0b01111111);
-            if zeroed == 1 {
-                println!("Invalid command");
-            } else if zeroed == 2 {
-                println!("Expected another argument");
-            } else {
-                println!("Error! Returned {}, expected {}", zeroed, out_size);
+            match zeroed {
+                1 => println!("Invalid command."),
+                2 => println!("Expected another argument."),
+                3 => println!("Running function failed; the action was not performed."),
+                4 => println!("Invalid argument."),
+                _ => println!("Communication error! Returned {}, expected {}", zeroed, out_size),
             }
+        } else {
+            println!("Success")
         }
     }
 }
