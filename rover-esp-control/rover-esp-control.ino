@@ -38,17 +38,19 @@ BluetoothSerial SerialBT;
 
 // Pin and address definitions for the RoboClaw
 RoboClaw rc = RoboClaw(&Serial, 10000);
-
 #define addresssRc 0x80 // 128
 
+/* Bluetooth device information */
 #define DEVICE_NAME "UNL-Rover"
-#define MAC "08:F9:E0:ED:20:4A"
+
+/* Picture number */
 #define PIC_NUM_ADDR 0
 
 int pictureNumber = 0;
 camera_fb_t *fb = NULL;
 
-enum Error {
+enum Message {
+    RESPONSE = 0,
     INVALID = -1,
     EXPECTED_ARG = -2,
     FUNCTION_FAILURE = -3,
@@ -62,8 +64,9 @@ enum Direction {
 };
 
 void setup() {
-    // Initalize RoboClaw
+    // Initalize RoboClaw and stop motor movement
     rc.begin(38400);
+    rc.
     rc.ForwardBackwardM1(addresssRc, 64);
     rc.ForwardBackwardM2(addresssRc, 64);
 
@@ -103,14 +106,12 @@ void loop() {
     // Get the string from the terminal
     String result = SerialBT.readStringUntil('\n');
     if (result.length() == 0) {
-        SerialBT.write(Error::INVALID);
+        SerialBT.write(Message::INVALID);
         return;
     }
 
-    // Parse the arguments and perform some actions
+    // Parse the arguments and perform some actions and return a status
     int status = parseArgs(result);
-
-    // Return the length of the sent bytes, indicating a normal success
     SerialBT.write(status);
 }
 
@@ -125,22 +126,24 @@ int parseArgs(String input) {
         case('m'): {
             arg = strtok(NULL, " ");
             if (arg == NULL) {
-                return Error::EXPECTED_ARG;
+                return Message::EXPECTED_ARG;
             }
 
             int direction = atoi(arg);
             if (direction == 0) {
-                return Error::INVALID_ARG;
+                return Message::INVALID_ARG;
             }
 
-            move(direction);
+            if (!move(direction)) {
+                return Message::FUNCTION_FAILURE;
+            }
         }
         break;
 
         // Save picture
         case('p'): {
             if (!savePicture()) {
-                return Error::FUNCTION_FAILURE;
+                return Message::FUNCTION_FAILURE;
             }
         }
         break;
@@ -149,12 +152,13 @@ int parseArgs(String input) {
         case('n'): {
             arg = strtok(NULL, " ");
             if (arg == NULL) {
-                return Error::EXPECTED_ARG;
+                sendString(String(pictureNumber));
+                break;
             }
 
             int newNumber = atoi(arg);
             if (newNumber == 0) {
-                return Error::INVALID_ARG;
+                return Message::INVALID_ARG;
             }
 
             pictureNumber = newNumber;
@@ -163,13 +167,26 @@ int parseArgs(String input) {
         }
         break;
 
+        // Get the battery voltage
+        case('v'): {
+            uint16_t voltage = rc.ReadMainBatteryVoltage(addresssRc);
+            sendString(String(voltage));
+        }
+        break;
+
         // If nothing else matched, it must be wrong!
         default: {
-            return Error::INVALID;
+            return Message::INVALID;
         }
     }
 
     return input.length() + 1;
+}
+
+void sendString(String message) {
+    SerialBT.write(Message::RESPONSE);
+    SerialBT.write(message.length());
+    SerialBT.print(message);
 }
 
 /// Initalizes the camera
@@ -285,9 +302,6 @@ bool move(int dir) {
     }
     return true;
 }
-
-
-
 
 
 

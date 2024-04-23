@@ -1,4 +1,5 @@
 use bluetooth_serial_port::{BtAddr, BtDevice, BtProtocol, BtSocket};
+use std::ffi::CString;
 use std::io::{stdout, Read, Write};
 use std::str::FromStr;
 use text_io::read;
@@ -45,6 +46,7 @@ fn bt_console(socket: &mut BtSocket) {
             },
         };
 
+        // Get response byte
         let mut buf = [0; 1];
         match socket.read(&mut buf) {
             Ok(size) => size,
@@ -54,6 +56,26 @@ fn bt_console(socket: &mut BtSocket) {
             },
         };
 
+        // Get textual messages from the device
+        if buf[0] == 0 {
+            print!("Response: ");
+
+            // Get size
+            let mut size_buf = [0; 1];
+            socket.read(&mut size_buf).unwrap();
+            let size = size_buf[0];
+
+            // Get rest of response
+            let mut size_buf = vec![0; size as usize];
+            socket.read(&mut size_buf).unwrap();
+
+            println!("{:?}", String::from_utf8(size_buf.to_vec()).unwrap());
+
+            // Get the actual status byte
+            socket.read(&mut buf).unwrap();
+        }
+
+        // Parse error messages
         if 0b10000000 & buf[0] != 0 {
             let zeroed = 128 - (buf[0] & 0b01111111);
             match zeroed {
