@@ -37,10 +37,7 @@ BluetoothSerial SerialBT;
 #include "RoboClaw.h"
 
 // Pin and address definitions for the RoboClaw
-#define RXD2 16
-#define TXD2 0
-
-RoboClaw rc = RoboClaw(&Serial2, 10000);
+RoboClaw rc = RoboClaw(&Serial, 10000);
 
 #define addresssRc 0x80 // 128
 
@@ -59,14 +56,12 @@ enum Error {
 };
 
 enum Direction {
-    FORWARD = 1,
-    BACKWARD = 2,
+    STOP = 1,
+    FORWARD = 2,
+    BACKWARD = 3,
 };
 
 void setup() {
-    // Initialize serial
-    Serial.begin(115200);
-
     // Initalize RoboClaw
     rc.begin(38400);
     rc.ForwardBackwardM1(addresssRc, 64);
@@ -74,20 +69,15 @@ void setup() {
 
     // Initalize bluetooth serial
     SerialBT.begin(DEVICE_NAME);
-    Serial.printf("Bluetooth Device \"%s\" started; MAC Address: %s\n", DEVICE_NAME, MAC);
 
     // Initalize camera
     if (!initCamera(framesize_t::FRAMESIZE_UXGA)) {
-        Serial.println("Camera could not be started");
-
         ESP.restart();
         return;
     }
 
     // Initalize SD card
     if(!SD_MMC.begin()){
-        Serial.println("SD Card Mount Failed");
-
         ESP.restart();
         return;
     }
@@ -133,8 +123,6 @@ int parseArgs(String input) {
     switch (*arg) {
         // Move the rover
         case('m'): {
-            Serial.println("Moving");
-
             arg = strtok(NULL, " ");
             if (arg == NULL) {
                 return Error::EXPECTED_ARG;
@@ -244,10 +232,6 @@ bool savePicture() {
     }
 
     file.write(fb->buf, fb->len); // payload (image), payload length
-    Serial.printf("Saved file to path: %s\n", path.c_str());
-    while (!file.available()) {
-        delay(5);
-    }
     file.flush();
     file.close();
 
@@ -277,15 +261,20 @@ String leadingZeroes(int input) {
 }
 
 /// Make the RoboClaw controller move forwards/backwards
-bool move(Direction dir) {
+bool move(int dir) {
     // TODO: Figure out what the actual forward and backward values are
     switch(dir) {
         case(Direction::FORWARD): {
-            rc.ForwardBackwardM1(addresssRc, 64);
-            rc.ForwardBackwardM2(addresssRc, 64);
+            rc.ForwardBackwardM1(addresssRc, 127);
+            rc.ForwardBackwardM2(addresssRc, 127);
         }
         break;
         case(Direction::BACKWARD): {
+            rc.ForwardBackwardM1(addresssRc, 0);
+            rc.ForwardBackwardM2(addresssRc, 0);
+        }
+        break;
+        case(Direction::STOP): {
             rc.ForwardBackwardM1(addresssRc, 64);
             rc.ForwardBackwardM2(addresssRc, 64);
         }
